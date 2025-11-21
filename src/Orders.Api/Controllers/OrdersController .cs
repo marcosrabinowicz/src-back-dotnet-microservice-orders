@@ -11,11 +11,13 @@ public class OrdersController : ControllerBase
 {
     private readonly CreateOrderUseCase _createOrder;
     private readonly IOrderRepository _repository;
+    private readonly IOrderQuery _query;
 
-    public OrdersController(CreateOrderUseCase createOrder, IOrderRepository repo)
+    public OrdersController(CreateOrderUseCase createOrder, IOrderRepository repository, IOrderQuery query)
     {
         _createOrder = createOrder;
-        _repository = repo;
+        _repository = repository;
+        _query = query;
     }
 
     [HttpPost]
@@ -44,6 +46,21 @@ public class OrdersController : ControllerBase
             order.Total,
             order.Items.Select(i => new OrderItemResponse(i.ProductId, i.Quantity, i.UnitPrice, i.Total))
         );
+
+        return Ok(response);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
+    {
+        var orders = await _query.ListAsync(page, pageSize, ct);
+
+        var response = orders.Select(o => new OrderListItemResponse(
+            o.Id,
+            o.CustomerId,
+            o.Total,
+            o.ItemsCount
+        ));
 
         return Ok(response);
     }
