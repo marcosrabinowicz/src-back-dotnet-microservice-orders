@@ -1,44 +1,68 @@
+using Microsoft.EntityFrameworkCore;
+using Orders.Application.Interfaces;
+using Orders.Application.UseCases;
+using Orders.Infrastructure.EF;
+using Orders.Infrastructure.Queries;
+using Orders.Infrastructure.Repositories;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// ---------------------------------------------------------
+// Database (EF Core)
+// ---------------------------------------------------------
+builder.Services.AddDbContext<OrdersDbContext>(options =>
+{
+    // Aqui você pode trocar para o banco real
+    // SqlServer, PostgreSQL, MySQL etc.
+
+    options.UseInMemoryDatabase("OrdersDb");
+});
+
+// ---------------------------------------------------------
+// Application Layer
+// ---------------------------------------------------------
+// UseCases (Commands)
+builder.Services.AddScoped<ICreateOrderUseCase, CreateOrderUseCase>();
+
+// ---------------------------------------------------------
+// Queries (Read Side - CQRS)
+// ---------------------------------------------------------
+builder.Services.AddScoped<IOrderQuery, OrdersQueries>();
+
+// ---------------------------------------------------------
+// Repositories (Write Side - Domain persistence)
+// ---------------------------------------------------------
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+
+// ---------------------------------------------------------
+// Controllers / API
+// ---------------------------------------------------------
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// (Opcional) CORS para permitir testar no Postman/Front
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", p =>
+        p.AllowAnyOrigin()
+         .AllowAnyHeader()
+         .AllowAnyMethod());
+});
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ---------------------------------------------------------
+// Pipeline
+// ---------------------------------------------------------
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast")
-.WithOpenApi();
+app.UseCors("AllowAll");
+app.MapControllers();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

@@ -29,4 +29,23 @@ public class OrdersQueries : IOrderQuery
             .Take(pageSize)
             .ToListAsync(ct);
     }
+
+    public Task<OrderDetailOutput?> GetByIdAsync(Guid id, CancellationToken ct)
+    {
+        return _db.Orders
+            .AsNoTracking()
+            .Where(o => o.Id == id)
+            .Select(o => new OrderDetailOutput(
+                o.Id,
+                o.CustomerId,
+                o.Total,
+                o.Items.Select(i => new OrderDetailItemOutput(
+                    i.ProductId,
+                    i.Quantity,
+                    i.UnitPrice,
+                    i.Total
+                )).ToList()
+            ))
+            .FirstOrDefaultAsync(ct);
+    }
 }

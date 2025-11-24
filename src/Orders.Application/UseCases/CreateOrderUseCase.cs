@@ -4,7 +4,7 @@ using Orders.Application.Interfaces;
 
 namespace Orders.Application.UseCases;
 
-public class CreateOrderUseCase
+public class CreateOrderUseCase : ICreateOrderUseCase
 {
     private readonly IOrderRepository _repository;
 

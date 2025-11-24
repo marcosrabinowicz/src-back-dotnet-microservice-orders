@@ -9,15 +9,13 @@ using Orders.Application.UseCases;
 [Route("orders")]
 public class OrdersController : ControllerBase
 {
-    private readonly CreateOrderUseCase _createOrder;
-    private readonly IOrderRepository _repository;
-    private readonly IOrderQuery _query;
+    private readonly ICreateOrderUseCase _createOrderUseCase;
+    private readonly IOrderQuery _orderQuery;
 
-    public OrdersController(CreateOrderUseCase createOrder, IOrderRepository repository, IOrderQuery query)
+    public OrdersController(ICreateOrderUseCase createOrder, IOrderQuery orderQuery)
     {
-        _createOrder = createOrder;
-        _repository = repository;
-        _query = query;
+        _createOrderUseCase = createOrder;
+        _orderQuery = orderQuery;
     }
 
     [HttpPost]
@@ -25,20 +23,46 @@ public class OrdersController : ControllerBase
     {
         var input = new CreateOrderInput(
             request.CustomerId,
-            request.Items.Select(i => new CreateOrderItemInput(i.ProductId, i.Quantity, i.UnitPrice)).ToList()
+            request.Items.Select(i =>
+                new CreateOrderItemInput(
+                    i.ProductId,
+                    i.Quantity,
+                    i.UnitPrice
+                )
+            ).ToList()
         );
 
-        var result = await _createOrder.ExecuteAsync(input, ct);
+        var response = await _createOrderUseCase.ExecuteAsync(input, ct);
 
-        return CreatedAtAction(nameof(GetById), new { id = result.OrderId }, result);
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = response.OrderId },
+            response
+        );
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
+    {
+        var list = await _orderQuery.ListAsync(page, pageSize, ct);
+
+        var response = list.Select(o => new OrderListItemResponse(
+            o.Id,
+            o.CustomerId,
+            o.Total,
+            o.ItemsCount
+        ));
+
+        return Ok(response);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
-        var order = await _repository.GetByIdAsync(id, ct);
+        var order = await _orderQuery.GetByIdAsync(id, ct);
 
-        if (order == null) return NotFound();
+        if (order == null)
+            return NotFound();
 
         var response = new OrderResponse(
             order.Id,
@@ -46,21 +70,6 @@ public class OrdersController : ControllerBase
             order.Total,
             order.Items.Select(i => new OrderItemResponse(i.ProductId, i.Quantity, i.UnitPrice, i.Total))
         );
-
-        return Ok(response);
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
-    {
-        var orders = await _query.ListAsync(page, pageSize, ct);
-
-        var response = orders.Select(o => new OrderListItemResponse(
-            o.Id,
-            o.CustomerId,
-            o.Total,
-            o.ItemsCount
-        ));
 
         return Ok(response);
     }
