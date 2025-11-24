@@ -1,159 +1,231 @@
-# 🧾 Orders Microservice
+# 🧾 Orders Microservice — Neshama Tech
 
-**Microserviço de pedidos desenvolvido com DDD + Clean Architecture + C#**  
+**Microserviço completo de Pedidos utilizando DDD + Clean Architecture + CQRS Light + EF Core**  
 _By Neshama Tech — Tecnologia na veia_
 
 ---
 
 ## 📌 Visão Geral
 
-Este microserviço implementa um sistema de **Pedidos (Orders)** utilizando fundamentos de engenharia de software de alto nível:
+Este microserviço implementa o fluxo completo de **Pedidos (Orders)** utilizando padrões modernos de engenharia:
 
 - **Domain-Driven Design (DDD)**
 - **Clean Architecture**
 - **Use Cases explícitos**
-- **Domínio rico e encapsulado**
+- **Domínio rico, imutável e encapsulado**
 - **Invariantes fortes**
-- **Eficiência e escalabilidade**
-- **Preparado para EF Core otimizado e SQL avançado**
+- **Separação real de leitura e escrita (CQRS Light)**
+- **EF Core otimizado**
+- **Consultas performáticas**
+- **API limpa e desacoplada**
 
-O objetivo deste projeto é servir como base sólida para microserviços reais, além de ser um estudo avançado dentro do plano **Especialista Backend C#**.
-
----
-
-## 🧱 Arquitetura
-
-A solução segue a Clean Architecture, separando as camadas em:
-
-/src
-/Orders.Domain
-/Aggregates
-/Entities
-/ValueObjects
-/Exceptions
-/Services
-
-/Orders.Application
-/DTOs
-/UseCases
-/Interfaces
-
-/Orders.Infrastructure (↳ será implementado no Dia 6)
-/EF
-/Repositories
-
-/Orders.API (↳ será implementado no Dia 6)
-/Controllers
-/Requests
-/Responses
+O projeto serve como parte do **Plano de Especialista Backend C#** e como referência arquitetural para a Neshama Tech.
 
 ---
 
-## 🧠 Domain Layer (Regras de Negócio)
+# 🧱 Arquitetura (Clean Architecture)
+
+A solução segue uma estrutura clara de camadas, onde dependências sempre apontam de fora para dentro:
+
+API → Application → Domain
+API → Application → Infrastructure → DbContext
+
+Nenhuma camada depende da que está “mais externa”.  
+O domínio permanece totalmente isolado.
+
+---
+
+## 📁 Estrutura do Projeto
+
+src/
+├── Orders.Api
+│ ├── Controllers
+│ ├── Requests
+│ ├── Responses
+│ └── Program.cs (DI, DbContext, Routing, Swagger)
+│
+├── Orders.Application
+│ ├── DTOs
+│ ├── Interfaces
+│ └── UseCases
+│
+├── Orders.Domain
+│ ├── Aggregates
+│ ├── Entities
+│ ├── ValueObjects
+│ └── Exceptions
+│
+└── Orders.Infrastructure
+├── EF
+│ ├── Configurations
+│ └── OrdersDbContext.cs
+├── Repositories
+└── Queries
+
+---
+
+# 🧠 Domínio (Orders.Domain)
 
 ### **Aggregate Root: `Order`**
-
-- Responsável por manter invariantes e consistência.
-- Contém:
-  - `CustomerId`
-  - `Items`
-  - Total calculado internamente
-- Protege a consistência com `EnsureInvariants()`.
+- Contém as regras centrais do pedido.
+- Calcula total internamente.
+- Garante invariantes:
+  - Pedido não pode ter itens inválidos
+  - Quantidade, preço e total são validados
+  - Domínio não expõe setters
 
 ### **Entity: `OrderItem`**
-
-- Imutável, com:
-  - `ProductId`
-  - `Quantity`
-  - `UnitPrice`
-  - `Total = Quantity * UnitPrice`
+- Produto de um pedido
+- Sempre consistente: `Total = Quantity * UnitPrice`
 
 ### **Value Object: `Money`**
-
 - Imutável
-- Suporta operadores
-- Valida moedas e valores
-- Igualdade por valor
+- Comparação por valor
+- Evita manipulação incorreta de valores monetários
 
 ### **Exceptions**
-
-- `DomainException` para validação de regras
+- `DomainException` para violação de regras
 
 ---
 
-## 📚 Application Layer (Casos de Uso)
+# 📚 Application (Orquestração)
 
-Camada de orquestração da aplicação.
-Não possui regra de negócio — apenas coordena chamadas ao domínio e repositórios.
+Camada responsável por coordenar o fluxo entre API, Domínio e Infraestrutura.
 
-### **UseCase principal**
-
-`CreateOrderUseCase`
-
-- Recebe DTOs de entrada (`CreateOrderInput`)
-- Cria Order via domínio
-- Aplica regras internas via Aggregate Root
-- Persiste via repositório (`IOrderRepository`)
-- Retorna DTO simples (`CreateOrderOutput`)
-
-### **DTOs**
-
+### 🔹 DTOs (Input/Output)
 - `CreateOrderInput`
 - `CreateOrderItemInput`
 - `CreateOrderOutput`
+- `OrderListItemOutput`
+- `OrderDetailOutput`
+- `OrderDetailItemOutput`
 
-### **Interfaces**
+### 🔹 Interfaces
+- `IOrderRepository` → escrita (aggregate root)
+- `IOrderQuery` → leitura (projeções otimizadas)
 
-- `IOrderRepository`
-
----
-
-## ⚙️ Próximas Etapas (Plano de Execução)
-
-### **Dia 6 — Infrastructure + EF Core + API**
-
-- Implementar `OrdersDbContext`
-- Mapear Order e OrderItem corretamente
-- Criar configurações com Fluent API
-- Criar índices adequados
-- Implementar o repositório concreto
-- Implementar os endpoints:
-  - `POST /orders`
-  - `GET /orders/{id}`
-  - `GET /orders?page=1&pageSize=20`
-- Utilizar projeção (Select) para máxima performance
+### 🔹 UseCases (Command Side)
+- `CreateOrderUseCase`
+  - Valida DTO
+  - Cria `Order` usando o domínio
+  - Persiste via `IOrderRepository`
+  - Retorna `CreateOrderOutput`
 
 ---
 
-## 🔍 Pilares Técnicos utilizados até agora
+# ⚙️ Infraestrutura (Orders.Infrastructure)
 
-- DDD orientado a invariantes
-- Clean Architecture aplicada
-- Encapsulamento forte do domínio
-- Zero regra de negócio fora do Aggregate Root
-- Uso de DTOs para fronteiras externas
-- Repositórios como abstração
-- Preparação para EF Core otimizado
-- Preparação para SQL de alta performance
+Responsável por acesso a dados, EF Core e persistência.
+
+### 🔹 DbContext
+`OrdersDbContext`
+- DbSet<Order>
+- DbSet<OrderItem>
+- Mapeamentos aplicados via Fluent Configuration
+
+### 🔹 Configurações EF Core
+- `OrderConfiguration`
+- `OrderItemConfiguration`
+
+Com:
+- Tipos
+- Tamanhos
+- Foreign Keys
+- Índices
+- Regras SQL-friendly
+
+### 🔹 Repository (Write Model)
+`OrderRepository`
+- Reconstrói Aggregate completo
+- Usa Include apenas no contexto adequado (comando)
+
+### 🔹 Queries (Read Model — CQRS Light)
+`OrdersQueries`
+- Consultas performáticas usando:
+  - AsNoTracking
+  - Projeção via Select
+  - Paginação (Skip/Take)
+  - Total calculado no SQL
+
+Implementa:
+- `ListAsync(page, pageSize)`
+- `GetByIdAsync(id)`
 
 ---
 
-## 🚀 Objetivo Final
+# 🌐 API (Orders.Api)
 
-Criar um microserviço robusto, escalável e moderno, seguindo exatamente os padrões usados por grandes empresas:
+### 🔹 Requests
+- `CreateOrderRequest`
+- `CreateOrderItemRequest`
 
-- Domínio isolado
-- Infra descartável
-- API limpa
-- Queries otimizadas
-- Concorrência controlada
-- Estrutura fácil de manter e evoluir
+### 🔹 Responses
+- `OrderListItemResponse`
+- `OrderDetailResponse`
 
-Este projeto também será utilizado como **material de estudo**, **portfólio profissional** e referência para os demais sistemas da Neshama Tech.
+### 🔹 Controller
+`OrdersController`
+
+Endpoints implementados:
+
+#### **POST /orders**
+Cria um pedido.  
+Fluxo: Request → Input → UseCase → Repository → Output → Response.
+
+#### **GET /orders**
+Lista paginada de pedidos (DTO projetado — leitura).
+
+#### **GET /orders/{id}**
+Detalhe completo de um pedido via Query (CQRS Light).
 
 ---
 
-## 🧑‍💻 Desenvolvido por
+# 🔌 Injeção de Dependências (DI)
 
+`Program.cs` configura:
+
+- `AddDbContext<OrdersDbContext>`
+- `AddScoped<ICreateOrderUseCase, CreateOrderUseCase>`
+- `AddScoped<IOrderRepository, OrderRepository>`
+- `AddScoped<IOrderQuery, OrdersQueries>`
+- Swagger
+- Controllers
+- CORS
+
+### Banco configurado:
+**EF Core InMemory (provider 8.x compatível com .NET 8)**  
+Pronto para ser trocado por Postgres ou SQL Server sem quebrar camadas.
+
+---
+
+# 🎯 Pilares Técnicos Aplicados
+
+- DDD com Aggregate Root real
+- Encapsulamento forte e imutabilidade
+- Clean Architecture aplicada corretamente
+- CQRS Light com separação total de leitura/escrita
+- API desacoplada de Domain + Infra
+- Projeções leves e performáticas
+- Domínio isolado e blindado contra efeitos externos
+- Codebase preparada para testes unitários e de integração
+
+---
+
+# 🚀 Objetivos Alcançados na Semana 1
+
+- Arquitetura estabelecida com clareza  
+- Fluxo completo criado com correção e propósito  
+- Microserviço funcionando ponta-a-ponta  
+- Todas as camadas alinhadas  
+- Consultas performáticas  
+- Regras de domínio consolidadas  
+- API limpa e profissional  
+
+Pronto para entrar na **Semana 2**:  
+**CQRS avançado, Azure e Observabilidade.**
+
+---
+
+# 🧑‍💻 Desenvolvido por  
 **Marcos Rabinowicz — Neshama Tech**  
 _Tecnologia na veia. Propósito no código._
